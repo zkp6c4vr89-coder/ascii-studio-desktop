@@ -1,0 +1,8 @@
+.DS_Store
+.venv/
+__pycache__/
+*.pyc
+snapshots/
+*_ascii*.png
+*_ascii*.mp4
+*_ascii*.txt

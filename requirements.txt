@@ -1,0 +1,9 @@
+numpy>=1.24
+opencv-python-headless>=4.8
+pillow>=10.1
+pygame-ce>=2.5
+pyvirtualcam>=0.12
+pyobjc-framework-Cocoa>=10
+pyobjc-framework-WebKit>=10
+pyobjc-framework-Quartz>=10
+pyobjc-framework-AVFoundation>=10
