@@ -17,6 +17,7 @@ import _venv  # noqa: F401  (restarts with the project Python if needed)
 import argparse
 import mimetypes
 import re
+import secrets
 import subprocess
 import threading
 import urllib.parse
@@ -55,13 +56,38 @@ STYLES = ("colour", "matrix", "mono")
 
 
 # ---------- tiny local web server: the page + your media file ----------
+# Only this app should be able to read it. Every run gets a secret random path prefix, and
+# requests must be addressed to 127.0.0.1:<port> exactly, which also defeats DNS-rebinding
+# tricks where a website points its own domain name at your computer.
+TOKEN = secrets.token_urlsafe(18)
+
+
 class Handler(SimpleHTTPRequestHandler):
     media: Path | None = None
+    port: int = 0
 
     def log_message(self, *args):  # keep the terminal quiet
         pass
 
+    def _allowed(self) -> bool:
+        prefix = f"/{TOKEN}/"
+        if self.headers.get("Host") != f"127.0.0.1:{Handler.port}" or not self.path.startswith(prefix):
+            self.send_error(404)
+            return False
+        self.path = "/" + self.path[len(prefix):]
+        return True
+
+    def list_directory(self, path):  # never list folders
+        self.send_error(404)
+        return None
+
+    def do_HEAD(self):
+        if self._allowed():
+            super().do_HEAD()
+
     def do_GET(self):
+        if not self._allowed():
+            return
         if self.path.startswith("/media/"):
             self._send_media()
         else:
@@ -105,8 +131,9 @@ class Handler(SimpleHTTPRequestHandler):
 
 def start_server() -> int:
     server = ThreadingHTTPServer(("127.0.0.1", 0), partial(Handler, directory=str(WEB_DIR)))
+    Handler.port = server.server_address[1]
     threading.Thread(target=server.serve_forever, daemon=True).start()
-    return server.server_address[1]
+    return Handler.port
 
 
 def on_battery() -> bool:
@@ -141,8 +168,8 @@ class Controller(NSObject):
         if a.shimmer is not None:
             q["shimmer"] = a.shimmer
         if Handler.media:
-            q["src"] = f"/media/{self.media_version}/{urllib.parse.quote(Handler.media.name)}"
-        return f"http://127.0.0.1:{self.port}/wallpaper.html?{urllib.parse.urlencode(q)}"
+            q["src"] = f"/{TOKEN}/media/{self.media_version}/{urllib.parse.quote(Handler.media.name)}"
+        return f"http://127.0.0.1:{self.port}/{TOKEN}/wallpaper.html?{urllib.parse.urlencode(q)}"
 
     @objc.python_method
     def fps(self) -> int:
@@ -180,7 +207,7 @@ class Controller(NSObject):
             win.orderFront_(None)
             self.windows.append(win)
             self.views.append(view)
-        print(f"wallpaper on {len(self.windows)} screen(s): {self.page_url()}")
+        print(f"wallpaper on {len(self.windows)} screen(s)")
 
     @objc.python_method
     def build_menu(self):

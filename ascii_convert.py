@@ -34,16 +34,22 @@ def screen_size() -> tuple[int, int]:
 
 
 def set_wallpaper(path: Path) -> None:
-    script = f'tell application "System Events" to tell every desktop to set picture to "{path.resolve()}"'
-    subprocess.run(["osascript", "-e", script], check=True)
+    # The path is handed to AppleScript as an argument, never pasted into the script text,
+    # so a file name containing quotes can't inject commands.
+    subprocess.run(["osascript",
+                    "-e", "on run argv",
+                    "-e", 'tell application "System Events" to tell every desktop to set picture to (item 1 of argv)',
+                    "-e", "end run",
+                    str(path.resolve())], check=True)
 
 
 def read_image(path: Path):
     img = cv2.imread(str(path))
     if img is None and path.suffix.lower() == ".heic":
-        tmp = Path(tempfile.mkdtemp()) / "in.png"  # macOS can convert HEIC for us
-        subprocess.run(["sips", "-s", "format", "png", str(path), "--out", str(tmp)], capture_output=True)
-        img = cv2.imread(str(tmp))
+        with tempfile.TemporaryDirectory() as tmpdir:   # macOS can convert HEIC for us
+            tmp = Path(tmpdir) / "in.png"
+            subprocess.run(["sips", "-s", "format", "png", str(path), "--out", str(tmp)], capture_output=True)
+            img = cv2.imread(str(tmp))
     if img is None:
         sys.exit(f"Couldn't read {path}")
     return img
@@ -84,7 +90,8 @@ def convert_video(args, renderer: AsciiRenderer, src: Path, out: Path) -> None:
         renderer.settings = renderer.settings.with_cell(size[0] // args.cols)
 
     ffmpeg = shutil.which("ffmpeg")
-    silent = Path(tempfile.mkdtemp()) / "video.mp4"
+    tmpdir = Path(tempfile.mkdtemp())
+    silent = tmpdir / "video.mp4"
     writer = cv2.VideoWriter(str(silent if ffmpeg else out), cv2.VideoWriter_fourcc(*"mp4v"), fps, size)
     n, t0 = 0, time.time()
     while True:
@@ -101,14 +108,16 @@ def convert_video(args, renderer: AsciiRenderer, src: Path, out: Path) -> None:
     print(f"\r  {n} frames done{' ' * 20}")
 
     if ffmpeg:  # re-encode to H.264 (plays everywhere) and copy the original sound back in
-        cmd = [ffmpeg, "-y", "-loglevel", "error", "-i", str(silent), "-i", str(src),
+        # absolute paths always start with "/", so a file named "-something" can't pose as an option
+        cmd = [ffmpeg, "-y", "-loglevel", "error", "-i", str(silent), "-i", str(src.resolve()),
                "-map", "0:v", "-map", "1:a?", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", "18",
-               "-c:a", "aac", "-shortest", str(out)]
+               "-c:a", "aac", "-shortest", str(out.resolve())]
         if subprocess.run(cmd).returncode != 0:
             shutil.copy(silent, out)
             print("  (ffmpeg failed, saved without sound)")
     else:
         print("  (ffmpeg not found, saved without sound)")
+    shutil.rmtree(tmpdir, ignore_errors=True)
     print(f"saved {out}")
 
 

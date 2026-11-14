@@ -140,7 +140,7 @@ def main() -> None:
     clock = pygame.time.Clock()
     shots = Path(__file__).resolve().parent / "snapshots"
 
-    running = True
+    running, art = True, None
     while running:
         for e in pygame.event.get():
             if e.type == pygame.QUIT or (e.type == pygame.KEYDOWN and e.key == pygame.K_ESCAPE):
@@ -167,7 +167,7 @@ def main() -> None:
                         print("virtual camera off")
                     else:
                         vcam = open_virtual_camera(W, H, FPS)
-                elif e.key == pygame.K_s:
+                elif e.key == pygame.K_s and art is not None:
                     shots.mkdir(exist_ok=True)
                     path = shots / f"ascii_cam_{int(time.time())}.png"
                     cv2.imwrite(str(path), art)
