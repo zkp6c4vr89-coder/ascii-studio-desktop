@@ -51,7 +51,7 @@ from PyObjCTools import AppHelper
 from Quartz import CGWindowLevelForKey, kCGDesktopWindowLevelKey
 from WebKit import WKWebView, WKWebViewConfiguration
 
-WEB_DIR = Path(__file__).resolve().parent / "web"   # copy of the website's renderer (see sync_web.py)
+WEB_DIR = Path(__file__).resolve().parent.parent / "web"   # the app's copy of the website (see sync_web.py)
 STYLES = ("colour", "matrix", "mono")
 
 

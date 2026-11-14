@@ -1,51 +1,65 @@
-# ASCII Studio: Desktop (macOS)
+# ASCII Studio: Desktop app
 
-Python tools that turn photos, videos and your webcam into colourful ASCII art.
+Turn photos, videos and your camera into colourful ASCII art, and bring your desktop to life
+with **live ASCII wallpapers**. For macOS, Windows and Linux.
 
-| Script | What it does |
+- **The full studio**: open photos and videos or use your camera; colour, Matrix and mono looks;
+  character size, contrast, edge strokes, glow, shimmer and character speed; save images,
+  record seamless 5 / 10 / 15 s or custom loops, copy as text
+- **Live wallpapers** behind your desktop icons: Water, Butterflies, Fireflies, Rain, Starfield,
+  or any photo or video from the studio. They react as you move the mouse, slow down on battery
+  and pause while the screen is locked
+- **Still wallpapers**: set any ASCII image as your desktop picture
+- **Menu-bar / tray icon**: open the studio, switch wallpapers, turn "open at login" on or off
+- **First-run setup guide**: camera, start at login and wallpaper, in about 30 seconds
+- 100% on-device. Nothing is uploaded
+
+| | macOS | Windows | Linux |
+|---|---|---|---|
+| Studio, camera, recording | ✅ | ✅ | ✅ |
+| Still wallpaper | ✅ | ✅ | ✅ GNOME, KDE, feh |
+| Live wallpaper | ✅ | ❌ (no supported way yet) | ⚠️ X11 desktops |
+| Open at login | ✅ | ✅ | ✅ |
+| Tested on real machines | ✅ | not yet | not yet |
+
+## Download
+Get the latest installer from the **[Releases page](../../releases/latest)**.
+
+## Installing
+The app isn't signed with a paid Apple or Microsoft certificate, so the first launch needs one extra step:
+
+- **macOS**: open the `.dmg` and drag **ASCII Studio** into **Applications**. The first time, right-click
+  the app › **Open** › **Open**. If macOS says the app "is damaged", run this once in Terminal:
+  `xattr -cr "/Applications/ASCII Studio.app"`
+- **Windows**: run the `.exe`. If SmartScreen appears, click **More info › Run anyway**.
+- **Linux**: `chmod +x ASCII-Studio-*.AppImage` and run it, or install the `.deb`
+  (`sudo apt install ./ASCII-Studio-*.deb`).
+
+## Develop
+```
+npm install
+npm start          # run the app
+npm run dist:mac   # build installers into dist/ (also dist:win, dist:linux)
+```
+`npm start` works from VS Code's terminal too. VS Code sets `ELECTRON_RUN_AS_NODE`, which would
+otherwise stop Electron from starting; `scripts/start.js` clears it.
+
+**Releasing:** bump `version` in `package.json`, commit, then `git tag v1.2.3 && git push --tags`.
+GitHub Actions builds the Mac, Windows and Linux installers and publishes them as a Release.
+
+## Layout
+| Path | What it is |
 |---|---|
-| `ascii_cam.py` | Live ASCII webcam, also sent to Zoom / Meet / Teams via OBS Virtual Camera |
-| `ascii_convert.py` | Convert photos → PNG/TXT and videos → MP4 (sound kept); make wallpapers |
-| `ascii_wallpaper.py` | Animated ASCII desktop wallpaper behind your icons, menu-bar controls |
-| `ascii_core.py` | The engine (NumPy + OpenCV, ~16 ms per HD frame) |
+| `app/main.js` | The app: windows, tray, wallpapers, open-at-login, security rules |
+| `app/preload.js` | The small, fixed set of functions pages may call |
+| `app/setup.*` | First-run setup guide |
+| `app/live.*` | Live wallpaper page |
+| `web/` | The studio and scenes, copied from **ascii-studio-web** (`python3 sync_web.py ../ascii-studio-web`) |
+| `python-tools/` | The original Python tools, including the ASCII webcam for Zoom (macOS) |
+| `.github/workflows/release.yml` | Builds and publishes the installers |
 
-## Setup
-```
-python3 -m venv .venv
-.venv/bin/pip install -r requirements.txt
-```
-After that, the scripts find `.venv` on their own, so plain `python3 ascii_cam.py` works.
-Video sound and camera-by-name need `ffmpeg` (`brew install ffmpeg`).
-
-## ASCII webcam
-```
-python3 ascii_cam.py              # built-in camera, 1280x720
-python3 ascii_cam.py --hd         # 1920x1080
-python3 ascii_cam.py --list       # list cameras
-python3 ascii_cam.py --camera EOS # pick a camera by (part of) its name
-```
-Or double-click **ASCII Cam.command**.
-Keys: `1` colour `2` matrix `3` mono · `[` `]` size · `E` edges · `G` glow · `M` mirror ·
-`V` virtual cam · `S` snapshot · `Esc` quit.
-
-**For Zoom (one time):** give your terminal/VS Code Camera access (System Settings → Privacy &
-Security → Camera); open OBS → *Start Virtual Camera* → allow the extension → stop and quit OBS.
-Then choose **OBS Virtual Camera** in Zoom.
-
-## Convert files
-```
-python3 ascii_convert.py photo.jpg                   # photo_ascii.png
-python3 ascii_convert.py photo.jpg --txt --cell 6    # more detail + plain text
-python3 ascii_convert.py clip.mp4 --style matrix     # clip_ascii.mp4 with sound
-python3 ascii_convert.py photo.jpg --wallpaper --set # screen-sized, set as desktop picture
-```
-
-## Animated wallpaper
-```
-python3 ascii_wallpaper.py              # character rain
-python3 ascii_wallpaper.py clip.mp4     # your video, looping
-python3 ascii_wallpaper.py photo.jpg    # photo with a gentle shimmer
-```
-Quit or change source from the ▚ menu-bar icon. Drops to 15 fps on battery.
-It shows `web/wallpaper.html` (copied from **ascii-studio-web**; refresh with
-`python3 sync_web.py ../ascii-studio-web`).
+## Security
+Pages are served from a private `app://` origin with a Content-Security-Policy, run sandboxed
+with no Node.js access, can't navigate away or open windows, and only get camera permission for
+the app's own pages. The app checks every message from a page, and file paths handed to the
+operating system are always passed as arguments, never pasted into scripts.

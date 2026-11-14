@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' blob:; media-src 'self' blob: mediastream:; style-src 'self' 'unsafe-inline'">
+  <title>Welcome to ASCII Studio</title>
+  <link rel="stylesheet" href="../web/style.css">
+  <link rel="stylesheet" href="setup.css">
+</head>
+<body>
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <filter id="liquid" x="0" y="0" width="100%" height="100%" color-interpolation-filters="sRGB">
+      <feTurbulence type="fractalNoise" baseFrequency="0.008 0.012" numOctaves="2" seed="11" result="noise"/>
+      <feGaussianBlur in="noise" stdDeviation="2" result="map"/>
+      <feDisplacementMap in="SourceGraphic" in2="map" scale="22" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+  </svg>
+
+  <main class="setup">
+    <!-- 1. welcome -->
+    <section class="step" data-step="0">
+      <img class="hero" src="../web/brand/icon-512.png" alt="" width="132" height="132">
+      <h1>Welcome to ASCII Studio</h1>
+      <p class="lede">Turn photos, videos and your camera into art made of characters, and bring your desktop to life with moving ASCII wallpapers.</p>
+      <p class="fine">This quick setup takes about 30 seconds. You can change everything later from the <span class="where"></span>.</p>
+    </section>
+
+    <!-- 2. camera -->
+    <section class="step" data-step="1" hidden>
+      <div class="glyph" aria-hidden="true">( o )</div>
+      <h1>Your camera, in characters</h1>
+      <p class="lede">ASCII Studio can redraw your camera live. It's only used while you switch the camera on, and nothing ever leaves your computer.</p>
+      <div class="actions"><button class="btn primary" id="cam-allow">Allow camera</button></div>
+      <p class="fine" id="cam-status">You can skip this and allow it later.</p>
+    </section>
+
+    <!-- 3. start-up -->
+    <section class="step" data-step="2" hidden>
+      <div class="glyph" aria-hidden="true">[ &gt;_ ]</div>
+      <h1>Start with your computer?</h1>
+      <p class="lede">ASCII Studio can open quietly in the <span class="where"></span> when you log in, so your live wallpaper is always running.</p>
+      <div class="card choices">
+        <label class="switch-row">Open ASCII Studio when I log in<input type="checkbox" id="login" class="switch"></label>
+      </div>
+      <p class="fine">It starts in the background. No window pops up.</p>
+    </section>
+
+    <!-- 4. live wallpaper -->
+    <section class="step" data-step="3" hidden>
+      <h1>Pick a live wallpaper</h1>
+      <p class="lede" id="live-lede">An animated ASCII scene behind your desktop icons. You'll see it the moment you pick one.</p>
+      <div class="tiles" id="tiles"></div>
+      <p class="fine" id="live-fine">It slows down on battery and pauses while your screen is locked.</p>
+    </section>
+
+    <!-- 5. done -->
+    <section class="step" data-step="4" hidden>
+      <img class="hero small" src="../web/brand/icon-512.png" alt="" width="96" height="96">
+      <h1>You're all set</h1>
+      <ul class="summary" id="summary"></ul>
+      <p class="fine">Tip: in the studio, open any photo or video and choose <b>Use as live wallpaper</b> to make it your desktop.</p>
+    </section>
+
+    <footer class="nav">
+      <div class="dots" id="dots" aria-hidden="true"></div>
+      <div class="buttons">
+        <button class="btn" id="back">Back</button>
+        <button class="btn primary" id="next">Continue</button>
+      </div>
+    </footer>
+  </main>
+  <script type="module" src="setup.js"></script>
+</body>
+</html>

@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>ASCII Studio</title>
+  <meta name="description" content="Turn photos, videos and your webcam into colourful ASCII art, right in your browser.">
+  <meta name="theme-color" content="#0b0a12" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#f4f3f8" media="(prefers-color-scheme: light)">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="ASCII Studio">
+  <link rel="icon" type="image/png" sizes="32x32" href="brand/icon-32.png">
+  <link rel="apple-touch-icon" href="brand/icon-180.png">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Liquid glass: bends what's behind buttons (Chromium only; others get frosted glass) -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <filter id="liquid" x="0" y="0" width="100%" height="100%" color-interpolation-filters="sRGB">
+      <feTurbulence type="fractalNoise" baseFrequency="0.008 0.012" numOctaves="2" seed="11" result="noise"/>
+      <feGaussianBlur in="noise" stdDeviation="2" result="map"/>
+      <feDisplacementMap in="SourceGraphic" in2="map" scale="22" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+  </svg>
+  <header class="topbar">
+    <img class="logo" src="brand/icon-128.png" alt="" width="40" height="40">
+    <div class="brand">
+      <h1>ASCII Studio</h1>
+      <p>Photos, videos and webcam, redrawn in characters.</p>
+    </div>
+    <span class="privacy" title="Nothing is uploaded">On-device</span>
+  </header>
+
+  <main class="layout">
+    <section id="stage" class="stage empty" aria-label="Preview">
+      <canvas id="out"></canvas>
+      <label id="drop" class="drop">
+        <input id="file" type="file" accept="image/*,video/*" hidden>
+        <span class="drop-icon" aria-hidden="true">
+          <img src="brand/icon-128.png" alt="" width="72" height="72">
+        </span>
+        <strong class="desktop-only">Drop a photo or video</strong>
+        <strong class="touch-only">Tap to choose a photo or video</strong>
+        <span>or use your camera, or try the character rain</span>
+      </label>
+      <div id="rec" class="rec-pill" hidden>● REC</div>
+    </section>
+
+    <aside class="panel" aria-label="Controls">
+      <section class="group">
+        <h2>Source</h2>
+        <div class="card">
+          <div class="row buttons">
+            <button id="btn-open" class="btn">Open</button>
+            <button id="btn-cam" class="btn">Camera</button>
+            <button id="btn-flip" class="btn" hidden title="Switch between front and back camera">Flip</button>
+            <button id="btn-rain" class="btn">Rain</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="group">
+        <h2>Look</h2>
+        <div class="card">
+          <div class="seg" id="style" role="radiogroup" aria-label="Style">
+            <span class="seg-thumb" aria-hidden="true"></span>
+            <button data-v="colour" class="on" role="radio">Colour</button>
+            <button data-v="matrix" role="radio">Matrix</button>
+            <button data-v="mono" role="radio">Mono</button>
+          </div>
+          <label class="slider">Character size <output data-for="cell"></output>
+            <input type="range" id="cell" min="4" max="24" step="1" value="8"></label>
+          <label class="slider">Contrast <output data-for="contrast"></output>
+            <input type="range" id="contrast" min="0.5" max="2.5" step="0.05" value="1.25"></label>
+          <label class="slider">Edge strokes <output data-for="edgeThreshold"></output>
+            <input type="range" id="edgeThreshold" min="0.15" max="1.2" step="0.05" value="0.45"></label>
+          <label class="slider">Glow <output data-for="glow"></output>
+            <input type="range" id="glow" min="0" max="1.2" step="0.05" value="0.45"></label>
+          <label class="switch-row">Edges<input type="checkbox" id="edges" class="switch" checked></label>
+          <label class="switch-row">Mirror<input type="checkbox" id="mirror" class="switch"></label>
+        </div>
+      </section>
+
+      <section class="group">
+        <h2>Motion</h2>
+        <div class="card">
+          <label class="slider">Shimmer <output data-for="shimmer"></output>
+            <input type="range" id="shimmer" min="0" max="1" step="0.05" value="0"></label>
+          <label class="slider">Character speed <output data-for="fps"></output>
+            <input type="range" id="fps" min="1" max="30" step="1" value="24"></label>
+        </div>
+      </section>
+
+      <section class="group">
+        <h2>Record a loop</h2>
+        <div class="card">
+          <div class="seg" id="dur" role="radiogroup" aria-label="Loop length">
+            <span class="seg-thumb" aria-hidden="true"></span>
+            <button data-v="5" role="radio">5s</button>
+            <button data-v="10" class="on" role="radio">10s</button>
+            <button data-v="15" role="radio">15s</button>
+            <button data-v="custom" role="radio">Custom</button>
+          </div>
+          <label id="custom-wrap" class="field" hidden>Length (seconds)
+            <input type="number" id="custom-dur" min="1" max="120" step="1" value="20" inputmode="numeric"></label>
+          <button id="btn-video" class="btn rec-btn wide">● Record 10s</button>
+          <button id="btn-save-rec" class="btn wide" hidden>Save video</button>
+          <p class="note">Animations repeat exactly once per loop, so videos loop seamlessly.</p>
+        </div>
+      </section>
+
+      <section class="group">
+        <h2>Save</h2>
+        <div class="card">
+          <label class="field">Size
+            <select id="size">
+              <option value="source">Match source (up to 1920 px)</option>
+              <option value="720">HD 720p</option>
+              <option value="1080">Full HD 1080p</option>
+              <option value="2160">4K</option>
+              <option value="screen">Wallpaper (fills this screen)</option>
+            </select>
+          </label>
+          <p class="note mono" id="size-hint"></p>
+          <div class="row buttons">
+            <button id="btn-png" class="btn primary">Save image</button>
+            <button id="btn-copy" class="btn">Copy text</button>
+            <button id="btn-txt" class="btn">.txt</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="group" id="wallpaper-group" hidden>
+        <h2>New-tab wallpaper</h2>
+        <div class="card">
+          <button id="btn-wall" class="btn primary wide">Set as new-tab wallpaper</button>
+          <div class="row buttons">
+            <button id="btn-wall-open" class="btn">Open new tab</button>
+            <button id="btn-wall-reset" class="btn">Use built-ins</button>
+          </div>
+          <p class="note">Every new tab shows this, animated, with a clock. New tabs also have five interactive built-in wallpapers.</p>
+        </div>
+      </section>
+
+      <section class="group" id="desktop-group" hidden>
+        <h2>Desktop wallpaper</h2>
+        <div class="card">
+          <button id="btn-desk-live" class="btn primary wide">Use as live wallpaper</button>
+          <button id="btn-desk-still" class="btn wide">Set as still wallpaper</button>
+          <p class="note" id="desk-note">Live wallpapers move behind your desktop icons. Switch scenes or turn them off from the menu-bar icon.</p>
+        </div>
+      </section>
+
+      <p class="status" id="status" role="status" aria-live="polite"></p>
+    </aside>
+  </main>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
