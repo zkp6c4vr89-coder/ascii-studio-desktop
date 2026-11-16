@@ -34,10 +34,20 @@ jobs:
 
       - run: npm ci
 
+      - name: Check the tag matches package.json
+        run: node scripts/check-version.js
+        env:
+          GITHUB_REF_NAME: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || '' }}
+
       - name: Build installers
         run: npx electron-builder ${{ matrix.args }} --publish never
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: "false"   # no paid signing certificate; see README
+
+      - name: Sign installers for the auto-updater
+        run: node scripts/sign-release.js dist
+        env:
+          UPDATE_SIGNING_KEY: ${{ secrets.UPDATE_SIGNING_KEY }}
 
       - uses: actions/upload-artifact@v4
         with:
@@ -48,6 +58,9 @@ jobs:
             dist/*.exe
             dist/*.AppImage
             dist/*.deb
+            dist/*.sig
+            dist/*.blockmap
+            dist/latest*.yml
 
   release:
     needs: build
@@ -62,6 +75,7 @@ jobs:
       - uses: softprops/action-gh-release@v2
         with:
           files: installers/*
+          prerelease: ${{ contains(github.ref_name, '-') }}
           generate_release_notes: true
           body: |
             ## Download
@@ -74,7 +88,8 @@ jobs:
             | Debian / Ubuntu | `ASCII-Studio-*-linux-amd64.deb` |
 
             These builds aren't signed with a paid certificate, so your computer will warn you the
-            first time. See **Installing** in the README for the one-time steps.
+            first time. See **Installing** in the README for the one-time steps. After that, the app
+            updates itself: every installer here has a `.sig` signature it checks before installing.
 
             > Tested on macOS. The Windows and Linux builds are built automatically but haven't been
             > tested on real machines yet; if something's off, please open an issue.

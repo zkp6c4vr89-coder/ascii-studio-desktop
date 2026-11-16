@@ -29,14 +29,24 @@ with **live ASCII wallpapers**. For macOS, Windows and Linux.
 Get the latest installer from the **[Releases page](../../releases/latest)**.
 
 ## Installing
-The app isn't signed with a paid Apple or Microsoft certificate, so the first launch needs one extra step:
+The app isn't signed with a paid Apple or Microsoft certificate, so the **first** launch needs one extra
+step. After that it **updates itself** (see below).
 
-- **macOS**: open the `.dmg` and drag **ASCII Studio** into **Applications**. The first time, right-click
-  the app › **Open** › **Open**. If macOS says the app "is damaged", run this once in Terminal:
-  `xattr -cr "/Applications/ASCII Studio.app"`
-- **Windows**: run the `.exe`. If SmartScreen appears, click **More info › Run anyway**.
-- **Linux**: `chmod +x ASCII-Studio-*.AppImage` and run it, or install the `.deb`
+- **macOS:** open the `.dmg` and drag **ASCII Studio** into **Applications**, then open it. macOS will say
+  it can't check the app for malicious software. Click **Done**, then go to
+  **System Settings → Privacy & Security**, scroll down to the message about ASCII Studio and click
+  **Open Anyway**, then **Open Anyway** again and enter your password. You only do this once.
+- **Windows:** run the `.exe`. If SmartScreen appears, click **More info → Run anyway**.
+- **Linux:** `chmod +x ASCII-Studio-*.AppImage` and run it, or install the `.deb`
   (`sudo apt install ./ASCII-Studio-*.deb`).
+
+## Updates
+ASCII Studio checks for new versions on launch and every few hours, downloads them in the background,
+**checks their digital signature**, and installs them when you quit (or straight away with
+**Restart to update** in the menu-bar / tray icon). The icon's menu also shows your version and has
+**Check for updates…**. On macOS this needs the app to be in a folder it can write to, like
+Applications; on Linux it tells you a new version is out. Versions before 1.2.0 have no updater, so
+download 1.2.0 by hand once.
 
 ## Develop
 ```
@@ -47,8 +57,8 @@ npm run dist:mac   # build installers into dist/ (also dist:win, dist:linux)
 `npm start` works from VS Code's terminal too. VS Code sets `ELECTRON_RUN_AS_NODE`, which would
 otherwise stop Electron from starting; `scripts/start.js` clears it.
 
-**Releasing:** bump `version` in `package.json`, commit, then `git tag v1.2.3 && git push --tags`.
-GitHub Actions builds the Mac, Windows and Linux installers and publishes them as a Release.
+**Releasing:** see [RELEASING.md](RELEASING.md). In short: bump `version` in `package.json`, commit,
+`git tag vX.Y.Z`, `git push --follow-tags`.
 
 ## Layout
 | Path | What it is |
@@ -58,6 +68,8 @@ GitHub Actions builds the Mac, Windows and Linux installers and publishes them a
 | `app/setup.*` | First-run setup guide |
 | `app/live.*` | Live wallpaper page (scene + optional clock) |
 | `app/customise.*` | Customise wallpaper window |
+| `app/updater.js` | Auto-updates with Ed25519 signature checks |
+| `scripts/sign-release.js` | Signs installers in CI (`UPDATE_SIGNING_KEY` secret) |
 | `web/` | The studio and scenes, copied from **ascii-studio-web** (`python3 sync_web.py ../ascii-studio-web`) |
 | `python-tools/` | The original Python tools, including the ASCII webcam for Zoom (macOS) |
 | `.github/workflows/release.yml` | Builds and publishes the installers |

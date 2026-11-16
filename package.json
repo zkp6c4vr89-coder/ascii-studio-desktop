@@ -1,7 +1,7 @@
 {
   "name": "ascii-studio",
   "productName": "ASCII Studio",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Turn photos, videos and your camera into colourful ASCII art, with live ASCII desktop wallpapers.",
   "main": "app/main.js",
   "homepage": "https://github.com/zkp6c4vr89-coder/ascii-studio-desktop",
@@ -17,7 +17,9 @@
     "dist": "electron-builder --publish never",
     "dist:mac": "electron-builder --mac --publish never",
     "dist:win": "electron-builder --win --publish never",
-    "dist:linux": "electron-builder --linux --publish never"
+    "dist:linux": "electron-builder --linux --publish never",
+    "sign": "node scripts/sign-release.js dist",
+    "check-version": "node scripts/check-version.js"
   },
   "devDependencies": {
     "electron": "45.3.2",
@@ -95,6 +97,17 @@
           ]
         }
       ]
-    }
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "zkp6c4vr89-coder",
+        "repo": "ascii-studio-desktop",
+        "releaseType": "release"
+      }
+    ]
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.11"
   }
 }

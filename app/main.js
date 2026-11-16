@@ -11,6 +11,7 @@ const fs = require("node:fs");
 const os = require("node:os");
 const { execFile } = require("node:child_process");
 const { pathToFileURL } = require("node:url");
+const updater = require("./updater");
 
 const ROOT = path.join(__dirname, "..");                 // holds web/ (the studio) and app/
 const ORIGIN = "app://ascii";
@@ -311,7 +312,17 @@ function buildTray() {
       },
     }))
     : [{ label: "Not available on Windows yet", enabled: false }];
+  const u = updater.getState();
+  const updateItem =
+    u.status === "ready" ? { label: `Restart to update to ${u.version}`, click: () => updater.install() }
+      : u.status === "downloading" ? { label: `Downloading update ${u.version || ""}…`, enabled: false }
+        : u.status === "available" ? { label: `Download version ${u.version}…`, click: () => updater.openDownloadPage() }
+          : u.status === "checking" ? { label: "Checking for updates…", enabled: false }
+            : { label: "Check for updates…", click: () => updater.checkNow() };
   tray.setContextMenu(Menu.buildFromTemplate([
+    { label: `ASCII Studio ${app.getVersion()}`, enabled: false },
+    updateItem,
+    { type: "separator" },
     { label: "Open ASCII Studio", click: openStudio },
     { type: "separator" },
     { label: "Live wallpaper", submenu: liveItems },
@@ -350,6 +361,9 @@ function registerIpc() {
   handle("wallpaper:config:get", () => ({ ...wallpaperConfig(), liveSupported: LIVE_SUPPORTED }));
   handle("wallpaper:config:set", (patch) => setWallpaperConfig(patch));
   handle("window:customise", () => { openCustomise(); return { ok: true }; });
+  handle("update:state", () => updater.getState());
+  handle("update:check", async () => { await updater.check({ manual: true }); return updater.getState(); });
+  handle("update:install", () => { updater.install(); return { ok: true }; });
   handle("camera:ask", async () => {
     if (!IS_MAC) return true;                      // Windows/Linux ask when the camera starts
     return systemPreferences.askForMediaAccess("camera");
@@ -390,6 +404,7 @@ app.whenReady().then(() => {
   harden();
   registerIpc();
   buildTray();
+  updater.init(() => buildTray());
 
   if (!settings.setupDone) openSetup();
   else if (!openedAtLogin()) openStudio();
