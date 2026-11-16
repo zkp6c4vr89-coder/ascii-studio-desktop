@@ -39,7 +39,7 @@ if (!app.requestSingleInstanceLock()) app.quit();
 
 // ---------------------------------------------------------------- settings
 const SETTINGS_FILE = () => path.join(app.getPath("userData"), "settings.json");
-const DEFAULTS = { setupDone: false, launchAtLogin: false, liveWallpaper: "off" };
+const DEFAULTS = { setupDone: false, launchAtLogin: false, liveWallpaper: "off", sceneOpts: {}, clockShow: false, clockOpts: {} };
 let settings = { ...DEFAULTS };
 function loadSettings() {
   try { settings = { ...DEFAULTS, ...JSON.parse(fs.readFileSync(SETTINGS_FILE(), "utf8")) }; } catch { settings = { ...DEFAULTS }; }
@@ -105,6 +105,53 @@ function openSetup() {
   setupWin.loadURL(`${ORIGIN}/app/setup.html`);
   setupWin.once("ready-to-show", () => setupWin.show());
   setupWin.on("closed", () => { setupWin = null; });
+}
+
+// ---------------------------------------------------------------- wallpaper customisation
+// Only known keys with the right kind of value are kept, whatever a page sends.
+const COLOR = (v) => typeof v === "string" && (/^#[0-9a-f]{6}$/i.test(v) || v === "rainbow");
+const NUM = (lo, hi) => (v) => typeof v === "number" && v >= lo && v <= hi;
+const BOOL = (v) => typeof v === "boolean";
+const ONE_OF = (...xs) => (v) => xs.includes(v);
+const SCHEMAS = {
+  water: { color: COLOR, size: NUM(0.5, 2), raindrops: BOOL },
+  rain: { umbrella: BOOL, fluid: BOOL, strength: NUM(0.4, 2), color: COLOR },
+  clock: {
+    font: ONE_OF("modern", "serif", "mono", "rounded", "typewriter", "ascii"), weight: ONE_OF(300, 600, 800),
+    size: NUM(0.5, 2), color: COLOR, hours: ONE_OF("auto", "12", "24"), seconds: BOOL,
+    date: ONE_OF("long", "short", "numeric", "hidden"), position: ONE_OF("center", "top-left", "bottom-left"), panel: BOOL,
+  },
+};
+function clean(obj, schema) {
+  const out = {};
+  if (obj && typeof obj === "object") for (const [k, ok] of Object.entries(schema)) if (ok(obj[k])) out[k] = obj[k];
+  return out;
+}
+function wallpaperConfig() {
+  return { scene: settings.liveWallpaper, sceneOpts: settings.sceneOpts, clockShow: settings.clockShow, clockOpts: settings.clockOpts };
+}
+function setWallpaperConfig(patch = {}) {
+  if (patch.sceneId in SCENE_SCHEMAS && patch.sceneOpts) {
+    settings.sceneOpts = { ...settings.sceneOpts, [patch.sceneId]: { ...settings.sceneOpts[patch.sceneId], ...clean(patch.sceneOpts, SCHEMAS[patch.sceneId]) } };
+  }
+  if (typeof patch.clockShow === "boolean") settings.clockShow = patch.clockShow;
+  if (patch.clockOpts) settings.clockOpts = patch.clockReset ? clean(patch.clockOpts, SCHEMAS.clock) : { ...settings.clockOpts, ...clean(patch.clockOpts, SCHEMAS.clock) };
+  saveSettings();
+  for (const w of liveWins) if (!w.isDestroyed()) w.webContents.send("config", wallpaperConfig());
+  return { ok: true };
+}
+const SCENE_SCHEMAS = { water: 1, rain: 1 };
+
+let customiseWin = null;
+function openCustomise() {
+  if (customiseWin && !customiseWin.isDestroyed()) { customiseWin.show(); customiseWin.focus(); return; }
+  customiseWin = new BrowserWindow({
+    width: 440, height: 760, minWidth: 380, minHeight: 480, title: "Customise wallpaper",
+    backgroundColor: "#0b0a12", show: false, webPreferences: secureWeb,
+  });
+  customiseWin.loadURL(`${ORIGIN}/app/customise.html`);
+  customiseWin.once("ready-to-show", () => customiseWin.show());
+  customiseWin.on("closed", () => { customiseWin = null; });
 }
 
 // ---------------------------------------------------------------- live wallpaper
@@ -258,13 +305,17 @@ function buildTray() {
   }
   const liveItems = LIVE_SUPPORTED
     ? [["off", "Off"], ...SCENES].map(([id, label]) => ({
-      label, type: "radio", checked: settings.liveWallpaper === id, click: () => setLive(id),
+      label, type: "radio", checked: settings.liveWallpaper === id, click: () => {
+        setLive(id);
+        if (customiseWin && !customiseWin.isDestroyed()) customiseWin.webContents.send("scene-changed", id);
+      },
     }))
     : [{ label: "Not available on Windows yet", enabled: false }];
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: "Open ASCII Studio", click: openStudio },
     { type: "separator" },
     { label: "Live wallpaper", submenu: liveItems },
+    { label: "Customise wallpaper…", enabled: LIVE_SUPPORTED, click: openCustomise },
     { label: "Open at login", type: "checkbox", checked: settings.launchAtLogin, click: (i) => setLaunchAtLogin(i.checked) },
     { label: "Run setup again", click: openSetup },
     { type: "separator" },
@@ -291,7 +342,14 @@ function registerIpc() {
   });
   handle("wallpaper:still", (buf) => (buf instanceof ArrayBuffer || ArrayBuffer.isView(buf)
     ? setStillWallpaper(buf) : { ok: false, error: "bad image" }));
-  handle("wallpaper:live", (id) => setLive(String(id)));
+  handle("wallpaper:live", (id) => {
+    const res = setLive(String(id));
+    if (customiseWin && !customiseWin.isDestroyed()) customiseWin.webContents.send("scene-changed", settings.liveWallpaper);
+    return res;
+  });
+  handle("wallpaper:config:get", () => ({ ...wallpaperConfig(), liveSupported: LIVE_SUPPORTED }));
+  handle("wallpaper:config:set", (patch) => setWallpaperConfig(patch));
+  handle("window:customise", () => { openCustomise(); return { ok: true }; });
   handle("camera:ask", async () => {
     if (!IS_MAC) return true;                      // Windows/Linux ask when the camera starts
     return systemPreferences.askForMediaAccess("camera");

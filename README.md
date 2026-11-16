@@ -9,6 +9,9 @@ with **live ASCII wallpapers**. For macOS, Windows and Linux.
 - **Live wallpapers** behind your desktop icons: Water, Butterflies, Fireflies, Rain, Starfield,
   or any photo or video from the studio. They react as you move the mouse, slow down on battery
   and pause while the screen is locked
+- **Customise wallpaper** window (menu-bar icon or the studio): ripple & rain colours (or rainbow),
+  laminar rain that flows round your cursor, umbrella on/off, and an optional desktop clock with six
+  fonts (incl. ASCII digits), 15 colours, size, 12/24-hour, seconds, date style, position and a glass panel
 - **Still wallpapers**: set any ASCII image as your desktop picture
 - **Menu-bar / tray icon**: open the studio, switch wallpapers, turn "open at login" on or off
 - **First-run setup guide**: camera, start at login and wallpaper, in about 30 seconds
@@ -53,7 +56,8 @@ GitHub Actions builds the Mac, Windows and Linux installers and publishes them a
 | `app/main.js` | The app: windows, tray, wallpapers, open-at-login, security rules |
 | `app/preload.js` | The small, fixed set of functions pages may call |
 | `app/setup.*` | First-run setup guide |
-| `app/live.*` | Live wallpaper page |
+| `app/live.*` | Live wallpaper page (scene + optional clock) |
+| `app/customise.*` | Customise wallpaper window |
 | `web/` | The studio and scenes, copied from **ascii-studio-web** (`python3 sync_web.py ../ascii-studio-web`) |
 | `python-tools/` | The original Python tools, including the ASCII webcam for Zoom (macOS) |
 | `.github/workflows/release.yml` | Builds and publishes the installers |

@@ -3,6 +3,7 @@
 import { AsciiRenderer } from "../web/renderer.js";
 import { loadWallpaper } from "../web/wallpaper-store.js";
 import { Grid, SCENES } from "../web/scenes.js";
+import { Clock } from "../web/customise.js";
 
 const q = new URLSearchParams(location.search);
 const canvas = document.getElementById("out");
@@ -17,6 +18,18 @@ window.setPaused = (p) => { paused = p; };
 let scene = null;
 const grid = new Grid();
 let choice = q.get("scene") || "water";
+
+// colours, flow and clock settings come from the app, and update live
+let config = { sceneOpts: {}, clockShow: false, clockOpts: {} };
+try { config = { ...config, ...(await window.liveBridge?.getConfig()) }; } catch {}
+const clock = new Clock(document.getElementById("clock"), document.getElementById("time"), document.getElementById("date"), config.clockOpts);
+document.body.classList.toggle("hide-clock", !config.clockShow);
+window.liveBridge?.onConfig((c) => {
+  config = c;
+  if (scene && scene.setOptions) scene.setOptions(c.sceneOpts[choice] || {});
+  clock.set(c.clockOpts || {});
+  document.body.classList.toggle("hide-clock", !c.clockShow);
+});
 
 if (choice === "custom") {
   let pic = null;
@@ -42,7 +55,7 @@ if (choice === "custom") {
 if (choice !== "custom") {
   const def = SCENES[choice] || SCENES.water;
   Object.assign(S, { cell: 7 * dpr, glow: def.glow, fps: 30, period: 10, shimmer: 0 });
-  scene = def.make();
+  scene = def.make(config.sceneOpts[choice]);
 }
 
 // cursor position from the app (CSS pixels within this screen) -> character cells

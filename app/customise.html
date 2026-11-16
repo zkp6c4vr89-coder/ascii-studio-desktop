@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'">
+  <title>Customise wallpaper</title>
+  <link rel="stylesheet" href="../web/customise.css">
+  <style>
+    html, body { margin: 0; min-height: 100%; background: #0b0a12; color: #f4f3f8; font-family: var(--font); -webkit-font-smoothing: antialiased; }
+    body {
+      background:
+        radial-gradient(70% 50% at 100% 0%, rgba(214, 60, 168, 0.18), transparent 70%),
+        radial-gradient(70% 50% at 0% 100%, rgba(109, 63, 242, 0.22), transparent 70%), #0b0a12;
+      padding: 22px 20px 28px;
+    }
+    h1 { margin: 0 0 4px; font: 700 24px var(--font); letter-spacing: -0.025em; }
+    .lede { margin: 0 0 6px; font-size: 13.5px; color: var(--dim); line-height: 1.45; }
+    .group-title:first-of-type { margin-top: 18px; }
+    .seg.scenes { display: grid; grid-template-columns: repeat(3, 1fr); }
+    .reset { margin-top: 4px; }
+  </style>
+</head>
+<body>
+  <h1>Customise wallpaper</h1>
+  <p class="lede">Changes show up on your desktop straight away. The wallpaper follows your mouse; clicks go to your desktop, so click effects only work in the browser extension.</p>
+
+  <h3 class="group-title">Live wallpaper</h3>
+  <div class="opts"><div id="scene-pick"></div></div>
+
+  <h3 class="group-title" id="scene-title">Scene</h3>
+  <div class="opts" id="scene-opts"></div>
+
+  <h3 class="group-title">Clock &amp; date on the desktop</h3>
+  <div class="opts" id="clock-opts"></div>
+
+  <script type="module" src="customise.js"></script>
+</body>
+</html>
