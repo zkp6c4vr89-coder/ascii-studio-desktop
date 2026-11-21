@@ -4,7 +4,7 @@
 ```bash
 npm version 1.2.0 --no-git-tag-version   # or edit "version" in package.json by hand
 git commit -am "v1.2.0"
-git tag v1.2.0
+git tag -a v1.2.0 -m v1.2.0     # -a matters: --follow-tags only pushes annotated tags
 git push --follow-tags
 ```
 That's it. GitHub Actions builds the macOS, Windows and Linux installers, signs them for the
@@ -67,7 +67,7 @@ release. Apps on older versions (which trust the old key) need one manual downlo
 ### macOS
 1. Install the current release from the `.dmg` into **Applications** and open it once
    (**System Settings → Privacy & Security → Open Anyway** the first time).
-2. Make a test prerelease: set `package.json` to e.g. `1.2.1-test.1`, commit, `git tag v1.2.1-test.1`,
+2. Make a test prerelease: set `package.json` to e.g. `1.2.1-test.1`, commit, `git tag -a v1.2.1-test.1 -m v1.2.1-test.1`,
    `git push --follow-tags`, and wait for the Actions run to finish.
 3. Quit ASCII Studio, then start it so it looks at prereleases:
    ```bash

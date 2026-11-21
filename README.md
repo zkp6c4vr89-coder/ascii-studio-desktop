@@ -58,7 +58,7 @@ npm run dist:mac   # build installers into dist/ (also dist:win, dist:linux)
 otherwise stop Electron from starting; `scripts/start.js` clears it.
 
 **Releasing:** see [RELEASING.md](RELEASING.md). In short: bump `version` in `package.json`, commit,
-`git tag vX.Y.Z`, `git push --follow-tags`.
+`git tag -a vX.Y.Z -m vX.Y.Z`, `git push --follow-tags`.
 
 ## Layout
 | Path | What it is |
