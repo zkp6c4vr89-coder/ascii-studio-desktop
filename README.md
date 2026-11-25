@@ -7,11 +7,15 @@ with **live ASCII wallpapers**. For macOS, Windows and Linux.
   character size, contrast, edge strokes, glow, shimmer and character speed; save images,
   record seamless 5 / 10 / 15 s or custom loops, copy as text
 - **Live wallpapers** behind your desktop icons: Water, Butterflies, Fireflies, Rain, Starfield,
-  or any photo or video from the studio. They react as you move the mouse, slow down on battery
+  the Christmas scenes (Snowfall, a turning 3D tree, Fireplace, Northern lights), or any photo or
+  video from the studio. They react as you move the mouse, slow down on battery
   and pause while the screen is locked
 - **Customise wallpaper** window (menu-bar icon or the studio): ripple & rain colours (or rainbow),
   laminar rain that flows round your cursor, umbrella on/off, and an optional desktop clock with six
   fonts (incl. ASCII digits), 15 colours, size, 12/24-hour, seconds, date style, position and a glass panel
+- **Christmas season** (1 Dec – 6 Jan): a countdown under the desktop clock, snow and string lights on
+  any live wallpaper, and a one-time switch to Snowfall if a live wallpaper is on (undo with
+  **Back to …** in the menu; "My picture" is never replaced)
 - **Still wallpapers**: set any ASCII image as your desktop picture
 - **Menu-bar / tray icon**: open the studio, switch wallpapers, turn "open at login" on or off
 - **First-run setup guide**: camera, start at login and wallpaper, in about 30 seconds
@@ -43,8 +47,9 @@ step. After that it **updates itself** (see below).
 ## Updates
 ASCII Studio checks for new versions on launch and every few hours, downloads them in the background,
 **checks their digital signature**, and installs them when you quit (or straight away with
-**Restart to update** in the menu-bar / tray icon). The icon's menu also shows your version and has
-**Check for updates…**. On macOS this needs the app to be in a folder it can write to, like
+**Restart to update**). Your version and **Check for Updates…** are in the app menu (macOS: **ASCII Studio**
+at the top left; Windows / Linux: **Help**), the **About** card at the bottom of the studio's sidebar, and the
+menu-bar / tray icon. On macOS this needs the app to be in a folder it can write to, like
 Applications; on Linux it tells you a new version is out. Versions before 1.2.0 have no updater, so
 download 1.2.0 by hand once.
 

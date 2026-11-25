@@ -9,7 +9,7 @@ git push --follow-tags
 ```
 That's it. GitHub Actions builds the macOS, Windows and Linux installers, signs them for the
 auto-updater, and publishes a GitHub Release. Installed apps pick it up within a few hours (or
-straight away with **Check for updates…** in the menu-bar / tray icon).
+straight away with **Check for Updates…** in the app menu, the studio's About card, or the menu-bar / tray icon).
 
 - The version lives in **one place: `package.json`**. The app reads it at runtime and the build names
   files from it. The workflow refuses to build if the tag doesn't match (`scripts/check-version.js`).
@@ -73,7 +73,7 @@ release. Apps on older versions (which trust the old key) need one manual downlo
    ```bash
    ASCII_UPDATE_PRERELEASE=1 "/Applications/ASCII Studio.app/Contents/MacOS/ASCII Studio"
    ```
-4. Use **Check for updates…** in the menu-bar icon. It should say **"ASCII Studio 1.2.1-test.1 is ready"**,
+4. Use **ASCII Studio → Check for Updates…** (or the studio's About card). It should say **"ASCII Studio 1.2.1-test.1 is ready"**,
    which means it was downloaded and the signature verified.
 5. Click **Restart now**. The app quits, swaps itself and reopens. The menu-bar icon's first line
    should show the new version, and you shouldn't get an "Open Anyway" prompt.

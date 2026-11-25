@@ -14,9 +14,13 @@ contextBridge.exposeInMainWorld("asciiDesktop", {
   setWallpaperConfig: (patch) => ipcRenderer.invoke("wallpaper:config:set", patch),
   openCustomise: () => ipcRenderer.invoke("window:customise"),
   onSceneChanged: (cb) => ipcRenderer.on("scene-changed", (_e, id) => cb(id)),
+  onConfig: (cb) => ipcRenderer.on("config", (_e, c) => cb(c)),
+  snap: () => ipcRenderer.invoke("wallpaper:snap"),
   updates: {
     state: () => ipcRenderer.invoke("update:state"),
     check: () => ipcRenderer.invoke("update:check"),
     install: () => ipcRenderer.invoke("update:install"),
+    download: () => ipcRenderer.invoke("update:download"),
+    onChange: (cb) => ipcRenderer.on("update-state", (_e, state) => cb(state)),
   },
 });

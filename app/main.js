@@ -4,7 +4,7 @@
 
 const {
   app, BrowserWindow, Tray, Menu, nativeImage, ipcMain, protocol, session,
-  systemPreferences, screen, shell, powerMonitor,
+  systemPreferences, screen, shell, powerMonitor, Notification,
 } = require("electron");
 const path = require("node:path");
 const fs = require("node:fs");
@@ -22,8 +22,12 @@ const LIVE_SUPPORTED = IS_MAC || IS_LINUX;               // Windows has no suppo
 const MAC_DESKTOP_LEVEL = -2147483623;                   // CGWindowLevelForKey(kCGDesktopWindowLevelKey)
 const SCENES = [
   ["water", "Water"], ["butterflies", "Butterflies"], ["fireflies", "Fireflies"],
-  ["rain", "Rain"], ["stars", "Starfield"], ["custom", "My picture (from the studio)"],
+  ["rain", "Rain"], ["stars", "Starfield"],
+  ["snow", "Snowfall"], ["tree", "Christmas tree"], ["fireplace", "Fireplace"], ["aurora", "Northern lights"],
+  ["custom", "My picture (from the studio)"],
 ];
+const STONE_IDS = ["water", "butterflies", "fireflies", "rain", "stars", "snow"];   // see web/festive.js
+const STONE_NAMES = { water: "blue", butterflies: "yellow", fireflies: "orange", rain: "red", stars: "purple", snow: "green" };
 const LIVE_IDS = new Set(["off", ...SCENES.map(([id]) => id)]);
 const startedHidden = process.argv.includes("--hidden");
 
@@ -40,7 +44,10 @@ if (!app.requestSingleInstanceLock()) app.quit();
 
 // ---------------------------------------------------------------- settings
 const SETTINGS_FILE = () => path.join(app.getPath("userData"), "settings.json");
-const DEFAULTS = { setupDone: false, launchAtLogin: false, liveWallpaper: "off", sceneOpts: {}, clockShow: false, clockOpts: {} };
+const DEFAULTS = {
+  setupDone: false, launchAtLogin: false, liveWallpaper: "off", sceneOpts: {}, clockShow: false, clockOpts: {},
+  festive: { snow: true, lights: true }, stones: [], season: {},
+};
 let settings = { ...DEFAULTS };
 function loadSettings() {
   try { settings = { ...DEFAULTS, ...JSON.parse(fs.readFileSync(SETTINGS_FILE(), "utf8")) }; } catch { settings = { ...DEFAULTS }; }
@@ -117,10 +124,14 @@ const ONE_OF = (...xs) => (v) => xs.includes(v);
 const SCHEMAS = {
   water: { color: COLOR, size: NUM(0.5, 2), raindrops: BOOL },
   rain: { umbrella: BOOL, fluid: BOOL, strength: NUM(0.4, 2), color: COLOR },
+  snow: { color: COLOR, amount: NUM(0.3, 2), pile: BOOL },
+  tree: { lights: ONE_OF("multi", "warm", "ice") },
+  festive: { snow: BOOL, lights: BOOL },
   clock: {
     font: ONE_OF("modern", "serif", "mono", "rounded", "typewriter", "ascii"), weight: ONE_OF(300, 600, 800),
     size: NUM(0.5, 2), color: COLOR, hours: ONE_OF("auto", "12", "24"), seconds: BOOL,
     date: ONE_OF("long", "short", "numeric", "hidden"), position: ONE_OF("center", "top-left", "bottom-left"), panel: BOOL,
+    countdown: BOOL,
   },
 };
 function clean(obj, schema) {
@@ -129,7 +140,14 @@ function clean(obj, schema) {
   return out;
 }
 function wallpaperConfig() {
-  return { scene: settings.liveWallpaper, sceneOpts: settings.sceneOpts, clockShow: settings.clockShow, clockOpts: settings.clockOpts };
+  return {
+    scene: settings.liveWallpaper, sceneOpts: settings.sceneOpts, clockShow: settings.clockShow, clockOpts: settings.clockOpts,
+    festive: settings.festive, stones: settings.stones,
+  };
+}
+function sendConfig() {
+  for (const w of liveWins) if (!w.isDestroyed()) w.webContents.send("config", wallpaperConfig());
+  if (customiseWin && !customiseWin.isDestroyed()) customiseWin.webContents.send("config", wallpaperConfig());
 }
 function setWallpaperConfig(patch = {}) {
   if (patch.sceneId in SCENE_SCHEMAS && patch.sceneOpts) {
@@ -137,11 +155,64 @@ function setWallpaperConfig(patch = {}) {
   }
   if (typeof patch.clockShow === "boolean") settings.clockShow = patch.clockShow;
   if (patch.clockOpts) settings.clockOpts = patch.clockReset ? clean(patch.clockOpts, SCHEMAS.clock) : { ...settings.clockOpts, ...clean(patch.clockOpts, SCHEMAS.clock) };
+  if (patch.festive) settings.festive = { ...settings.festive, ...clean(patch.festive, SCHEMAS.festive) };
   saveSettings();
   for (const w of liveWins) if (!w.isDestroyed()) w.webContents.send("config", wallpaperConfig());
   return { ok: true };
 }
-const SCENE_SCHEMAS = { water: 1, rain: 1 };
+const SCENE_SCHEMAS = { water: 1, rain: 1, snow: 1, tree: 1 };
+
+// ---------------------------------------------------------------- the six stones
+// The wallpaper reports a stone when the cursor rests on it; the snap is started from the
+// Customise window once all six are found.
+function collectStone(id) {
+  if (!STONE_IDS.includes(id) || settings.stones.includes(id)) return { ok: false };
+  settings.stones = [...settings.stones, id];
+  saveSettings();
+  sendConfig();
+  const n = settings.stones.length;
+  notify(n === 6 ? "All six stones" : `You found the ${STONE_NAMES[id]} stone`,
+    n === 6 ? "Snap from the Customise wallpaper window." : `${n} of 6. Each one hides in a different wallpaper.`);
+  return { ok: true };
+}
+function snapNow() {
+  if (STONE_IDS.some((id) => !settings.stones.includes(id)) || !liveWins.length) return { ok: false };
+  liveJS("window.snap && window.snap()");
+  return { ok: true };
+}
+function notify(title, body) {
+  try { if (Notification.isSupported()) new Notification({ title, body, silent: true }).show(); } catch {}
+}
+
+// ---------------------------------------------------------------- Christmas season
+// In December the live wallpaper turns festive once (only if one is on, and never over
+// "My picture"); "Back to …" in the menus undoes it; after 6 Jan it goes back if untouched.
+let seasonal = null;
+async function seasonCheck() {
+  try { seasonal = seasonal || await import(pathToFileURL(path.join(ROOT, "web", "seasonal.js")).href); } catch { return; }
+  if (!LIVE_SUPPORTED) return;
+  const d = seasonal.autoSwitchDecision(settings.liveWallpaper, settings.season);
+  if (!d) return;
+  settings.season = d.season;
+  saveSettings();
+  if (d.restore && LIVE_IDS.has(d.restore)) setLive(d.restore);
+  if (d.switch) {
+    setLive(d.switch);
+    notify(d.christmasDay ? "Merry Christmas!" : "Your wallpaper is festive for December",
+      `Switched to ${sceneName(d.switch)}. To undo, choose "Back to ${sceneName(d.season.prev)}" from the ASCII Studio menu.`);
+  }
+  buildTray(); buildAppMenu();
+}
+function sceneName(id) { return (SCENES.find(([s]) => s === id) || [id, id])[1]; }
+function seasonUndoItem() {
+  const s = settings.season || {};
+  if (s.done || !s.prev || settings.liveWallpaper !== s.picked) return [];
+  return [{ label: `Back to ${sceneName(s.prev)}`, click: () => {
+    settings.season = { ...s, done: true };
+    setLive(s.prev);
+    buildAppMenu();
+  } }];
+}
 
 let customiseWin = null;
 function openCustomise() {
@@ -220,6 +291,8 @@ function setLive(id) {
   saveSettings();
   startLive(id);
   buildTray();
+  buildAppMenu();
+  if (customiseWin && !customiseWin.isDestroyed()) customiseWin.webContents.send("scene-changed", id);
   return { ok: true };
 }
 function liveJS(code) {
@@ -292,6 +365,58 @@ function openedAtLogin() {
   try { return IS_MAC && app.getLoginItemSettings().wasOpenedAtLogin; } catch { return false; }
 }
 
+// The update line shared by the tray and the app menu.
+function updateMenuItem() {
+  const u = updater.getState();
+  return u.status === "ready" ? { label: `Restart to Update to ${u.version}`, click: () => updater.install() }
+    : u.status === "downloading" ? { label: `Downloading Update ${u.version || ""}…`, enabled: false }
+      : u.status === "available" ? { label: `Download Version ${u.version}…`, click: () => updater.openDownloadPage() }
+        : u.status === "checking" ? { label: "Checking for Updates…", enabled: false }
+          : { label: "Check for Updates…", click: () => updater.checkNow() };
+}
+
+// The menu at the top of the screen (macOS) or in the window (Windows / Linux).
+// "Check for Updates…" lives here as well as in the tray, because the menu-bar icon
+// can end up hidden behind the notch on MacBooks.
+function buildAppMenu() {
+  const update = updateMenuItem();
+  const version = { label: `Version ${app.getVersion()}`, enabled: false };
+  const wallpaper = [
+    ...seasonUndoItem(),
+    { label: "Customise Wallpaper…", enabled: LIVE_SUPPORTED, click: openCustomise },
+    { label: "Run Setup Again", click: openSetup },
+  ];
+  const template = [
+    ...(IS_MAC ? [{
+      label: app.name,
+      submenu: [
+        { role: "about" }, update, version,
+        { type: "separator" }, ...wallpaper,
+        { type: "separator" }, { role: "services" },
+        { type: "separator" }, { role: "hide" }, { role: "hideOthers" }, { role: "unhide" },
+        { type: "separator" }, { role: "quit" },
+      ],
+    }] : []),
+    { role: "fileMenu" }, { role: "editMenu" }, { role: "viewMenu" }, { role: "windowMenu" },
+    {
+      role: "help",
+      submenu: [
+        ...(IS_MAC ? [] : [update, version, { type: "separator" }, ...wallpaper, { type: "separator" }]),
+        { label: "ASCII Studio on GitHub", click: () => shell.openExternal("https://github.com/zkp6c4vr89-coder/ascii-studio-desktop") },
+        { label: "Support on Ko-fi", click: () => shell.openExternal("https://ko-fi.com/nandhu_sauce") },
+      ],
+    },
+  ];
+  Menu.setApplicationMenu(Menu.buildFromTemplate(template));
+}
+
+// Tell the studio when the update state changes, so its About card stays current.
+function updatesChanged() {
+  buildTray();
+  buildAppMenu();
+  if (studioWin && !studioWin.isDestroyed()) studioWin.webContents.send("update-state", updater.getState());
+}
+
 // ---------------------------------------------------------------- tray / menu-bar icon
 let tray = null;
 function buildTray() {
@@ -312,13 +437,7 @@ function buildTray() {
       },
     }))
     : [{ label: "Not available on Windows yet", enabled: false }];
-  const u = updater.getState();
-  const updateItem =
-    u.status === "ready" ? { label: `Restart to update to ${u.version}`, click: () => updater.install() }
-      : u.status === "downloading" ? { label: `Downloading update ${u.version || ""}…`, enabled: false }
-        : u.status === "available" ? { label: `Download version ${u.version}…`, click: () => updater.openDownloadPage() }
-          : u.status === "checking" ? { label: "Checking for updates…", enabled: false }
-            : { label: "Check for updates…", click: () => updater.checkNow() };
+  const updateItem = updateMenuItem();
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: `ASCII Studio ${app.getVersion()}`, enabled: false },
     updateItem,
@@ -326,6 +445,7 @@ function buildTray() {
     { label: "Open ASCII Studio", click: openStudio },
     { type: "separator" },
     { label: "Live wallpaper", submenu: liveItems },
+    ...seasonUndoItem(),
     { label: "Customise wallpaper…", enabled: LIVE_SUPPORTED, click: openCustomise },
     { label: "Open at login", type: "checkbox", checked: settings.launchAtLogin, click: (i) => setLaunchAtLogin(i.checked) },
     { label: "Run setup again", click: openSetup },
@@ -361,9 +481,12 @@ function registerIpc() {
   handle("wallpaper:config:get", () => ({ ...wallpaperConfig(), liveSupported: LIVE_SUPPORTED }));
   handle("wallpaper:config:set", (patch) => setWallpaperConfig(patch));
   handle("window:customise", () => { openCustomise(); return { ok: true }; });
+  handle("stones:collect", (id) => collectStone(id));
+  handle("wallpaper:snap", () => snapNow());
   handle("update:state", () => updater.getState());
   handle("update:check", async () => { await updater.check({ manual: true }); return updater.getState(); });
   handle("update:install", () => { updater.install(); return { ok: true }; });
+  handle("update:download", () => { updater.openDownloadPage(); return { ok: true }; });
   handle("camera:ask", async () => {
     if (!IS_MAC) return true;                      // Windows/Linux ask when the camera starts
     return systemPreferences.askForMediaAccess("camera");
@@ -404,7 +527,10 @@ app.whenReady().then(() => {
   harden();
   registerIpc();
   buildTray();
-  updater.init(() => buildTray());
+  buildAppMenu();
+  updater.init(updatesChanged);
+  seasonCheck();
+  setInterval(seasonCheck, 60 * 60 * 1000);           // notices 1 Dec / 7 Jan without a restart
 
   if (!settings.setupDone) openSetup();
   else if (!openedAtLogin()) openStudio();

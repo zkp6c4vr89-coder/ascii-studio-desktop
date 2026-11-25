@@ -6,4 +6,5 @@ contextBridge.exposeInMainWorld("liveBridge", {
   onPointer: (cb) => ipcRenderer.on("pointer", (_e, p) => cb(p)),
   getConfig: () => ipcRenderer.invoke("wallpaper:config:get"),
   onConfig: (cb) => ipcRenderer.on("config", (_e, c) => cb(c)),
+  collectStone: (id) => ipcRenderer.invoke("stones:collect", id),
 });
